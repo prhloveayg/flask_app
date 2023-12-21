@@ -1,0 +1,77 @@
+version: '3'
+
+services:
+  flask_app:
+    build:
+      context: ./app
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./app:/app
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - my_network
+    
+
+  mysql:
+    image: mysql:latest
+    environment:
+      MYSQL_PORTS: 3306:3306
+      MYSQL_ROOT_PASSWORD: houpr1013
+      MYSQL_DATABASE: IoT
+      MYSQL_USER: houpr
+      MYSQL_PASSWORD: houpr1013
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - my_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "mysql", "-u", "houpr", "-phoupr1013"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+  
+  mqtt:
+    image: eclipse-mosquitto
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - my_network_mqtt
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  client:
+    build:
+      context: ./mqtt/client
+    volumes:
+      - ./mqtt/client:/app
+    depends_on:
+      flask_app:
+        condition: service_started
+      mqtt:
+        condition: service_started
+    networks:
+      - my_network_mqtt
+
+  subscriber:
+    build:
+      context: ./mqtt/subscriber
+    volumes:
+      - ./mqtt/subscriber:/app
+    depends_on:
+      client:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+    networks:
+      - my_network_mqtt
+      - my_network
+
+networks:
+  my_network:
+    driver: bridge
+  my_network_mqtt:
+    driver: bridge

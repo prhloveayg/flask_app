@@ -184,6 +184,7 @@ def add():
     empty_error = False
     price_error = False
     success = False
+    get_devices()
     if request.method == "POST":
         insert = True
         if request.form['category']=="" or request.form['name']=="" or request.form['price']=="":
@@ -200,15 +201,13 @@ def add():
             database='IoT'
             )
             cursor = conn.cursor()
-            sql = "select name from device"
-            cursor.execute(sql)
-            res = cursor.fetchall()
-            if res!=():
-                res = res[0]
-                for n in res:
-                    if n==request.form['name']:
-                        name_duplicate_error = True
-                        insert = False
+            sql = "select name from device where name=%s"
+            cursor.execute(sql, request.form['name'])
+            res = cursor.fetchone()
+            if res!=None:
+                name_duplicate_error = True
+                insert = False
+                
         if insert:
             sql = "insert into device(category, add_date, name, price) values(%s,%s,%s,%s)"
             cursor.execute(sql,(request.form['category'],datetime.now(),request.form['name'],request.form['price']))
@@ -229,6 +228,7 @@ def delete():
     not_exist_error = False
     empty_error = False
     success = False
+    get_devices()
     if request.method == "POST":
 
         if request.form['name']=="":
@@ -267,6 +267,9 @@ def modify():
     price_error = False
     success = False
     not_found = False
+    name_duplicate_error = False
+    search_first = False
+    get_devices()
     if request.method == "POST":
         if request.form["action"] == "Submit":
             insert = True
@@ -284,15 +287,25 @@ def modify():
                     database='IoT'
                     )
                 cursor = conn.cursor()
-                sql = "UPDATE device SET category = %s, price = %s, name = %s WHERE id = %s"
-                cursor.execute(sql,(request.form['category'],request.form['price'],request.form['name'], id))
-                conn.commit()
-                success = True
-                get_devices()
-                session.clear()
+                sql = "select id from device where name = %s"
+                cursor.execute(sql, request.form['name'])
+                res = cursor.fetchone()
+                if id == "":
+                    search_first = True
+                    return render_template("modify.html", home = usr_name, member=devices, result=devices, empty_error = empty_error, price_error = price_error, not_found = not_found, session = session, success=success, name_duplicate_error = name_duplicate_error, search_first = search_first)
+                if res!=None and int(res[0]) != int(id):
+                    name_duplicate_error = True
+                else:
+                    sql = "UPDATE device SET category = %s, price = %s, name = %s WHERE id = %s"
+                    cursor.execute(sql,(request.form['category'],request.form['price'],request.form['name'], id))
+                    conn.commit()
+                    success = True
+                    get_devices()
+                    session.clear()
 
         elif request.form["action"] == "Search":
             if request.form['id']!='':
+                get_devices()
                 conn = pymysql.connect(
                     host='mysql',
                     user='houpr',
@@ -325,7 +338,7 @@ def modify():
             session['name'] = ""
             session['price'] = ""
 
-    return render_template("modify.html", home = usr_name, member=devices, result=devices, empty_error = empty_error, price_error = price_error, not_found = not_found, session = session, success=success)
+    return render_template("modify.html", home = usr_name, member=devices, result=devices, empty_error = empty_error, price_error = price_error, not_found = not_found, session = session, success=success, name_duplicate_error = name_duplicate_error, search_first = search_first)
 
 
 @app.route('/')
@@ -396,11 +409,13 @@ def deal_register(name, email, password):
         database='IoT'
         )
     cur = conn.cursor()
+    sql = 'select * from users where name=\'{}\' and password=\'{}\''.format(name, password)
+    num = cur.execute(sql)
+    if num!=0:
+        return 3
     sql = 'insert into users values(%s,%s,%s)'
     sql_return = cur.execute(sql, (name, email, password))
     conn.commit()
-    if sql_return!=1:
-        return 3
     return 0
 
 @app.route('/forget_password', methods=['GET', 'POST'])
@@ -427,6 +442,7 @@ def forget_password():
 
 @app.route('/reset_password', methods=['GET', 'POST'])
 def reset_password():
+    empty_error = False
     global name_forget
     if request.method=='GET':
         name_forget = request.args.get('name')
@@ -434,6 +450,9 @@ def reset_password():
     if request.method=='POST':
         password1 = request.form['password1']
         password2 = request.form['password2']
+        if password1 == "" or password2 == "" or len(password1) < 6:
+            empty_error = True
+            return render_template('reset_password.html', empty_error = empty_error)
         name = name_forget
         name_forget = ''
         if password1 != password2:
@@ -452,7 +471,7 @@ def reset_password():
             conn.commit()
             return redirect(url_for('login'))
 
-    return render_template('reset_password.html')
+    return render_template('reset_password.html', empty_error = empty_error)
 
 def fetch_data_from_db():
     conn = pymysql.connect(
@@ -529,10 +548,11 @@ def map_total():
             tooltip=f"Device {device_id} trajectory",
         ).add_to(feature_group)
 
-    folium.TileLayer(tiles='http://webst02.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', name='Gaode satellite map', attr='Gaode satellite map').add_to(m)
+    
     folium.TileLayer(tiles='http://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}', name='Gaode street map', attr='Gaode street map').add_to(m)
+    folium.TileLayer(tiles='http://webst02.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', name='Gaode satellite map', attr='Gaode satellite map').add_to(m)
 
-    folium.LayerControl().add_to(m)
+    folium.LayerControl(auto_add = False).add_to(m)
 
     plugins.GroupedLayerControl(
         groups={'Select Device<br>(Single):': groups},

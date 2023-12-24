@@ -317,6 +317,18 @@
     </script>
     {% endif %}
 
+    {% if name_duplicate_error|default(False) %}
+    <script type="text/javascript">
+        alert("Device name already exists.");
+    </script>
+    {% endif %}
+
+    {% if search_first|default(False) %}
+    <script type="text/javascript">
+        alert("Please search the device first.");
+    </script>
+    {% endif %}
+
     <!-- Bootstrap core JavaScript-->
    <script src="../static/vendor/jquery/jquery.min.js"></script>
    <script src="../static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>

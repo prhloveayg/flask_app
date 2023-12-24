@@ -27,7 +27,7 @@ async def worker(device_id, mqtt_broker, topic, client_prefix):
         client_id = f"{client_prefix}{device_id:04d}"
 
         while True:
-            interval = random.randint(0, 9)
+            interval = random.randint(5, 16)
             await asyncio.sleep(interval)
 
             now = datetime.now()

@@ -12,4 +12,4 @@ RUN pip install gunicorn
 RUN pip install cryptography
 
 # Command to run the application
-CMD ["gunicorn", "-w", "4", "flask_app:app", "-b", "0.0.0.0:5000"]
+CMD ["gunicorn", "-w", "1", "flask_app:app", "-b", "0.0.0.0:5000"]

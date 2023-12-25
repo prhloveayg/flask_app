@@ -443,6 +443,7 @@ def forget_password():
 @app.route('/reset_password', methods=['GET', 'POST'])
 def reset_password():
     empty_error = False
+    invalid_pass = False
     global name_forget
     if request.method=='GET':
         name_forget = request.args.get('name')
@@ -455,23 +456,25 @@ def reset_password():
             return render_template('reset_password.html', empty_error = empty_error)
         name = name_forget
         name_forget = ''
-        if password1 != password2:
-            pass
-        else:
+        if password1 == password2:
             conn = pymysql.connect(
                 host='mysql',
                 user='houpr',
                 password=database_password__,
-                database='IoT',
-                autocommit=False
+                database='IoT'
             )
             cur = conn.cursor()
+            sql = 'select * from users where name=\'{}\' and password=\'{}\''.format(name, password1)
+            num = cur.execute(sql)
+            if num!=0:
+                invalid_pass = True
+                return render_template('reset_password.html', empty_error = empty_error, invalid_pass = invalid_pass)
             sql='update users set password=\'{}\' where name=\'{}\''.format(password1, name)
             cur.execute(sql)
             conn.commit()
             return redirect(url_for('login'))
 
-    return render_template('reset_password.html', empty_error = empty_error)
+    return render_template('reset_password.html', empty_error = empty_error, invalid_pass = invalid_pass)
 
 def fetch_data_from_db():
     conn = pymysql.connect(

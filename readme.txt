@@ -2,6 +2,8 @@
 
 本工程用docker-compose构建。
 
+在运行docker-compose之前，一定要确定自己电脑的5000端口，3306端口和1883端口未被占用。
+
 1. 将本工程放到一个英文路径下
 2. cd path/to/project
 3. sudo docker-compose up
